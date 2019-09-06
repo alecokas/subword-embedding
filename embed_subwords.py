@@ -121,7 +121,7 @@ def parse_arguments(args_to_parse):
     return args
 
 def embed(corpus_path, vector_length, type, target_dir, word2vec_dir):
-    call("subword-embeddings/embed.sh {} {} {} {}".format(vector_length, target_dir, corpus_path, word2vec_dir), shell=True)
+    call("subword-embedding/embed.sh {} {} {} {}".format(vector_length, target_dir, corpus_path, word2vec_dir), shell=True)
 
 def save_embedding_to_npy(embedding_dict,
                           npy_embedding_file='{}/embedding/embedding.npy'.format(RES_DIR)):

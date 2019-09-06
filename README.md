@@ -10,7 +10,7 @@ The ground truth transcription from the audio recording (*.mlf) is required to b
 ...
 ```
 
-### Training
+### Usage
 Run the following command:
 ```
 python embed_subwords.py [arguments]
