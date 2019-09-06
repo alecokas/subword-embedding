@@ -9,3 +9,15 @@ The ground truth transcription from the audio recording (*.mlf) is required to b
 ს G3;D1 GEORGIAN LETTER SAN
 ...
 ```
+
+### Training
+Run the following command:
+```
+python embed_subwords.py [arguments]
+```
+
+### Dependencies
+* python 3.6.3
+* numpy 1.14.0
+* matplotlib 2.1.2
+* scikit-learn 0.19.1
