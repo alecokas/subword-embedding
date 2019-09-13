@@ -99,7 +99,7 @@ def parse_arguments(args_to_parse):
         help='Path to local word2vec directory'
     )
     embedding.add_argument(
-        '-p', '--perplexity', type=int,
+        '-p', '--perplexity', type=float,
         default=5,
         help='The perplexity for t-SNE'
     )
