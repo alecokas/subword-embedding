@@ -36,7 +36,7 @@ def parse_arguments(args_to_parse):
     )
     general.add_argument(
         '-ph', '--unique-subwords', type=str,
-        default='{}/unqiue-subword-list.dat'.format(RES_DIR),
+        default='{}/unique-subword-list.dat'.format(RES_DIR),
         help='Path name of the file where the the unique subword unit list will be saved.'
     )
     general.add_argument(

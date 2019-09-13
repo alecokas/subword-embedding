@@ -7,7 +7,8 @@ from utils import to_float, remove_comment_elements
 
 TIME_SCALE_FACTOR = 1e9
 DECIMAL_PLACES = 6
-
+POSN_INFO_LEN = 2
+APOSTROPHE_TOKEN = 'A'
 
 class Arc(object):
     """ Container for the arc information """
@@ -54,7 +55,6 @@ class Arc(object):
                 return ''.join(itemised_subword_info[:stop]) if incl_posn_info else self.remove_location_indicator(itemised_subword_info[:stop])
             else:
                 return itemised_subword_info[1] if incl_posn_info else self.remove_location_indicator(itemised_subword_info[1])
-            
         else:
             raise Exception('The subword unit length should be 1 or 3, but found {}'.format(len(itemised_subword_info)))
 
@@ -67,10 +67,39 @@ class Arc(object):
         if isinstance(subword_with_location, list):
             clean_subword_list = []
             for subword in subword_with_location:
-                clean_subword_list.append(subword.split('^')[0])
+                subword_split = subword.split('^')
+                if len(subword_split) == 1:
+                    clean_subword_list.append(subword_split[0])
+                else:
+                    clean_subword, apostrophe = self.__clean_subword_split(subword_split)
+                    clean_subword_list.append(clean_subword)
+
+                    if apostrophe:
+                        clean_subword_list.append(apostrophe)
             return ' '.join(clean_subword_list)
         else:
-            return subword_with_location.split('^')[0]
+            subword_split = subword_with_location.split('^')
+            if len(subword_split) == 1:
+                return subword_split[0]
+            else:
+                clean_subword, apostrophe = self.__clean_subword_split(subword_split)
+
+                if apostrophe is not None:
+                    return ' '.join([clean_subword, apostrophe])
+                else:
+                    return clean_subword
+
+    def __clean_subword_split(self, raw_subword_split):
+        pronunciation = raw_subword_split[1][POSN_INFO_LEN - 1:]
+        if pronunciation.endswith(APOSTROPHE_TOKEN):
+            pronunciation = pronunciation.replace(APOSTROPHE_TOKEN, '')
+            apostrophe = APOSTROPHE_TOKEN
+        else:
+            apostrophe = None
+
+        raw_subword = raw_subword_split[0] + pronunciation
+        return raw_subword, apostrophe
+
 
 class SentenceLabels(object):
     """ A representation of a sentence as a one-best sequence. """

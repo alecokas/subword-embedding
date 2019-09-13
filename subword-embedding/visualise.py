@@ -25,11 +25,14 @@ def visualise_embedding(embedding_dir, perplexity, learning_rate, image_path_nam
     with open(embedding_dir, 'r') as emb_file:
         embedding_list = emb_file.readlines()
 
+    print('Number of subword units: {}'.format(len(embedding_list)))
+
     embedding_dict = {}
     vector_emb = []
     subword_labels = []
-    # Start at 2 to skip the random </s> character which is coming through
-    for embedding in embedding_list[3:]:
+    # TODO: Make this a clean solution
+    # Start at 2 to skip the random </s> character which is coming through (may need to be 3 for Georgian)
+    for embedding in embedding_list[2:]:
         segmented_embedding = embedding.split()
         subword_labels.append(label_mapping[segmented_embedding[0]])
         embedding_vector = [float(dim) for dim in segmented_embedding[1:]]
@@ -43,7 +46,7 @@ def visualise_embedding(embedding_dir, perplexity, learning_rate, image_path_nam
     for i, subword_label in zip(datapoint_indices, subword_labels):
         ax.scatter(emb_2d[i, 0], emb_2d[i, 1], c='c', label=subword_label)
 
-    
+
     for i, subword_label in enumerate(subword_labels):
         ax.annotate(subword_label, (emb_2d[i, 0], emb_2d[i, 1]))
 
@@ -71,8 +74,8 @@ def label_maps_from_file(path_to_summary, label_mapping_code, saved_dict=False):
         split_line = line.split()
         # Design the mapping such that the mapping code can be used to index the list
         # code: [code, phonetic English, native characters]
-        code = split_line[1].split(';')[0]
-        code_options = [code, split_line[4], split_line[0]]
+        code = split_line[1]
+        code_options = [code, split_line[-1], split_line[0]]
         label_map[code] = code_options[label_mapping_code]
     # Add special characters sp and sil
     label_map['sp'] = 'sp'
@@ -81,4 +84,3 @@ def label_maps_from_file(path_to_summary, label_mapping_code, saved_dict=False):
     label_map['G00'] = 'G00'
     label_map['G01'] = 'G01'
     return label_map
-    
