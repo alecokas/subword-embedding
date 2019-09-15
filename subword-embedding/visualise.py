@@ -3,6 +3,9 @@ matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from sklearn.manifold import TSNE
 
+# TODO: This should be a command line param or infered from the file
+APOSTROPHE_TOKEN = 'A'
+
 
 def visualise_embedding(embedding_dir, perplexity, learning_rate, image_path_name, label_mapping):
     """ Read an embedding from file and save the t-SNE visualisation
@@ -54,7 +57,7 @@ def visualise_embedding(embedding_dir, perplexity, learning_rate, image_path_nam
     return embedding_dict
 
 
-def label_maps_from_file(path_to_summary, label_mapping_code, saved_dict=False):
+def label_maps_from_file(path_to_summary, label_mapping_code, separate_apostrophe_embedding, saved_dict=False):
     """ Generate a label mapping from the summary.txt file or a previously compiled
         mapping dictionary.
 
@@ -64,10 +67,14 @@ def label_maps_from_file(path_to_summary, label_mapping_code, saved_dict=False):
                                     0 = Map to self (no mapping)
                                     1 = Map to English phonetic spelling
                                     2 = Map to native language characters
+            separate_apostrophe_embedding: boolean indicator of whether the apostrophe should be viewed
+                                            a distinct subword unit or included within the pronunciation
             TODO: saved_dict : If the file is already a saved dictionary in the correct form
     """
     with open(path_to_summary, 'r') as mapping_file:
         mapping_list = mapping_file.readlines()
+
+    apostrophe_options = find_apostrophe_options(mapping_list)
 
     label_map = {}
     for line in mapping_list:
@@ -77,6 +84,8 @@ def label_maps_from_file(path_to_summary, label_mapping_code, saved_dict=False):
         code = split_line[1]
         code_options = [code, split_line[-1], split_line[0]]
         label_map[code] = code_options[label_mapping_code]
+        if not separate_apostrophe_embedding:
+            label_map[code + APOSTROPHE_TOKEN] = apostrophe_options[label_mapping_code]
     # Add special characters sp and sil
     label_map['sp'] = 'sp'
     label_map['sil'] = 'sil'
@@ -84,3 +93,13 @@ def label_maps_from_file(path_to_summary, label_mapping_code, saved_dict=False):
     label_map['G00'] = 'G00'
     label_map['G01'] = 'G01'
     return label_map
+
+
+def find_apostrophe_options(mapping_list):
+    for line in mapping_list:
+        split_line = line.split()
+        if split_line[0] == "'":
+            en = split_line[0]
+            native = split_line[-1]
+            apostrophe_code = split_line[1]
+            return [apostrophe_code, native, en]

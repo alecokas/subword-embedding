@@ -162,6 +162,7 @@ def main(args):
     label_map = label_maps_from_file(
         path_to_summary=args.summary_file,
         label_mapping_code=args.map_label,
+        separate_apostrophe_embedding=args.apostrophe_embedding,
         saved_dict=False
     )
 
