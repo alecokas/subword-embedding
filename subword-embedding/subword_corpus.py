@@ -12,14 +12,16 @@ APOSTROPHE_TOKEN = 'A'
 
 class Arc(object):
     """ Container for the arc information """
-    def __init__(self, arc_string, subword_context_width, include_position_information=True):
+    def __init__(self, arc_string, subword_context_width, include_position_information=True, apostrophe_embedding=False):
         """ Initialise the Arc object
 
             Arguments:
                 arc_string: A string line from the unzipped HTK MLF file
                 subword_context_width: The subword context width as an integer (the number of grams to consider)
-                include_position_information: Boolean for whether the position information should be included (^I, ^M, ^F) 
+                include_position_information: Boolean for whether the position information should be included (^I, ^M, ^F)
+                apostrophe_embedding: Boolean which determines whether apostrophes are modelled as separate subword units
         """
+        self.apostrophe_embedding = apostrophe_embedding
         self.start_time_s, self.end_time_s, subword_info, self.neg_log_score = self.extract_arc(arc_string)
         self.token = self.strip_subword(subword_info, subword_context_width, include_position_information)
 
@@ -72,10 +74,12 @@ class Arc(object):
                     clean_subword_list.append(subword_split[0])
                 else:
                     clean_subword, apostrophe = self.__clean_subword_split(subword_split)
-                    clean_subword_list.append(clean_subword)
-
-                    if apostrophe:
-                        clean_subword_list.append(apostrophe)
+                    if self.apostrophe_embedding:
+                        clean_subword_list.append(clean_subword)
+                        if apostrophe:
+                            clean_subword_list.append(apostrophe)
+                    else:
+                        clean_subword_list.append(clean_subword + apostrophe)
             return ' '.join(clean_subword_list)
         else:
             subword_split = subword_with_location.split('^')
@@ -85,7 +89,10 @@ class Arc(object):
                 clean_subword, apostrophe = self.__clean_subword_split(subword_split)
 
                 if apostrophe is not None:
-                    return ' '.join([clean_subword, apostrophe])
+                    if self.apostrophe_embedding:
+                        return ' '.join([clean_subword, apostrophe])
+                    else:
+                        return ''.join([clean_subword, apostrophe])
                 else:
                     return clean_subword
 
@@ -103,17 +110,22 @@ class Arc(object):
 
 class SentenceLabels(object):
     """ A representation of a sentence as a one-best sequence. """
-    def __init__(self, string_mlf, subword_context_width, include_posn_info):
+    def __init__(self, string_mlf, subword_context_width, include_posn_info, separate_apostrophe_embedding):
         """ Initialise the SentenceLabels object
 
             Arguments:
                 string_mlf: The raw form of a reference sentence (MLF) as a string
                 subword_context_width: The subword unit context width as an integer
+                include_posn_info: Boolean indicator for whether the position information should be included.
+                separate_apostrophe_embedding: boolean indicator of whether the apostrophe should be viewed
+                                               a distinct subword unit or included within the pronunciation
         """
         if string_mlf:
             one_best_list = remove_comment_elements(string_mlf)
             self.label_name = one_best_list[0]
-            self.arc_list = self.extract_arcs(one_best_list[1:], subword_context_width, include_posn_info)
+            self.arc_list = self.extract_arcs(
+                one_best_list[1:], subword_context_width, include_posn_info, separate_apostrophe_embedding
+            )
             self.start_arc = self.arc_starts_at_zero()
         else:
             self.label_name = None
@@ -125,18 +137,22 @@ class SentenceLabels(object):
             viz_arcs += (str(arc) + '\n')
         return "{}\n{}".format(self.label_name, viz_arcs)
 
-    def extract_arcs(self, raw_arcs_list, subword_context_width, include_posn_info):
+    def extract_arcs(self, raw_arcs_list, subword_context_width, include_posn_info, separate_apostrophe_embedding):
         """ Converts a string list of arcs to a list of Arc objects
 
             Arguments:
                 raw_arcs_list: A list of string arcs
+                subword_context_width: The subword unit context width as an integer
+                include_posn_info: Boolean indicator for whether the position information should be included.
+                separate_apostrophe_embedding: boolean indicator of whether the apostrophe should be viewed
+                                               a distinct subword unit or included within the pronunciation
 
             Returns:
                 arc_list: A list of arcs as Arc objects
         """
         arc_list = []
         for raw_arc in raw_arcs_list:
-            arc_list.append(Arc(raw_arc, subword_context_width, include_posn_info))
+            arc_list.append(Arc(raw_arc, subword_context_width, include_posn_info, separate_apostrophe_embedding))
         return arc_list
 
     def is_none(self):
@@ -174,29 +190,39 @@ class SentenceLabels(object):
 
 class MLFDataset(object):
     """ A class for containing the sub-word marked one-best reference sequences described in the MLF file """
-    def __init__(self, path_to_mlf, subword_context_width, incl_posn_info):
+    def __init__(self, path_to_mlf, subword_context_width, incl_posn_info, separate_apostrophe_embedding):
         """ Initialises the MLFDataset object
 
             Arguments:
                 path_to_mlf: The path to the MLF file as a string
-                subword_context_width: whether to use monophones, biphones, triphones, etc
+                subword_context_width: Integer indicator of whether to use monophones, biphones, triphones, etc
+                incl_posn_info: Boolean indicator for whether the position information should be included.
+                separate_apostrophe_embedding: boolean indicator of whether the apostrophe should be viewed
+                                               a distinct subword unit or included within the pronunciation
         """
-        self.ref_list = self.read_mlf_list(path_to_mlf, subword_context_width, incl_posn_info)
+        self.ref_list = self.read_mlf_list(
+            path_to_mlf, subword_context_width, incl_posn_info, separate_apostrophe_embedding
+        )
         self.subwords = self.unique_subwords()
 
-    def read_mlf_list(self, path_to_mlf, subword_context_width, incl_posn_info):
+    def read_mlf_list(self, path_to_mlf, subword_context_width, incl_posn_info, separate_apostrophe_embedding):
         """ Saves the MLF (one-best sequence) in the target file as a list of SentenceLabels objects
 
             Arguments:
                 path_to_mlf: The path to the MLF file as a string
                 subword_context_width: The subword context width as an integer
+                incl_posn_info: Boolean indicator for whether the position information should be included.
+                separate_apostrophe_embedding: boolean indicator of whether the apostrophe should be viewed
+                                               a distinct subword unit or included within the pronunciation
         """
         with open(path_to_mlf, 'r') as mlf_file:
             contents_list = mlf_file.read().split('\n.\n')
 
             one_best_list = []
             for string_sentence in contents_list:
-                mlf_labels = SentenceLabels(string_sentence, subword_context_width, incl_posn_info)
+                mlf_labels = SentenceLabels(
+                    string_sentence, subword_context_width, incl_posn_info, separate_apostrophe_embedding
+                )
                 if not mlf_labels.is_none():
                     one_best_list.append(mlf_labels)
 

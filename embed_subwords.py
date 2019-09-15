@@ -99,6 +99,19 @@ def parse_arguments(args_to_parse):
         help='Path to local word2vec directory'
     )
     embedding.add_argument(
+        '-l', '--vec-length', type=int, default=4,
+        help='The length of the vector representing each embedded subword unit.'
+    )
+    embedding.add_argument(
+        '--save-to-npy', dest='embed_to_npy', action='store_true'
+    )
+    embedding.set_defaults(embed_to_npy=False)
+    embedding.add_argument(
+        '--apostrophe-embedding', dest='apostrophe_embedding', action='store_true'
+    )
+    embedding.set_defaults(apostrophe_embedding=False)
+    # t-SNE representation
+    embedding.add_argument(
         '-p', '--perplexity', type=float,
         default=5,
         help='The perplexity for t-SNE'
@@ -108,14 +121,6 @@ def parse_arguments(args_to_parse):
         default=200,
         help='The t-SNE learning rate.'
     )
-    embedding.add_argument(
-        '-l', '--vec-length', type=int, default=4,
-        help='The length of the vector representing each embedded subword unit.'
-    )
-    embedding.add_argument(
-        '--save-to-npy', dest='embed_to_npy', action='store_true'
-    )
-    embedding.set_defaults(embed_to_npy=False)
 
     args = parser.parse_args(args_to_parse)
     return args
@@ -137,7 +142,8 @@ def main(args):
         subword_dataset = MLFDataset(
             path_to_mlf=args.mlf_file,
             subword_context_width=args.subword_context,
-            incl_posn_info=args.subword_loc_info
+            incl_posn_info=args.subword_loc_info,
+            separate_apostrophe_embedding=args.apostrophe_embedding
         )
         subword_dataset.save_unique_subwords(target_file=args.unique_subwords)
         write_to_file(content=subword_dataset.corpus(), target=args.output_corpus)
