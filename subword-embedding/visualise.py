@@ -85,7 +85,7 @@ def label_maps_from_file(path_to_summary, label_mapping_code, separate_apostroph
         code_options = [code, split_line[-1], split_line[0]]
         label_map[code] = code_options[label_mapping_code]
         if not separate_apostrophe_embedding:
-            label_map[code + APOSTROPHE_TOKEN] = apostrophe_options[label_mapping_code]
+            label_map[code + APOSTROPHE_TOKEN] = code_options[label_mapping_code] + apostrophe_options[label_mapping_code]
     # Add special characters sp and sil
     label_map['sp'] = 'sp'
     label_map['sil'] = 'sil'
