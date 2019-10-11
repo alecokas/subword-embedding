@@ -134,18 +134,31 @@ def word2vec_embed(corpus_path, vector_length, target_dir, word2vec_dir):
 
 def fasttext_embed(corpus_path, vector_length, unique_subwords_path, target_dir):
     model = fasttext.train_unsupervised(corpus_path, dim=vector_length)
+    print('In-vocab subwords: {}'.format(model.words))
 
     with open(unique_subwords_path) as unique_subwords_file:
         unique_subwords = json.load(unique_subwords_file)
 
     output_list = []
+    # Add header
     output_list.append('{} {}'.format(len(model.words), vector_length))
+    unique_subwords = ['</s>'] + unique_subwords
+
     for subword in unique_subwords:
-        embedding = ' '.join(model[subword].tolist)
+        embedding = ' '.join([str(element) for element in model[subword].tolist()])
         line = '{} {}'.format(subword, embedding)
         output_list.append(line)
 
-    with open('{}/embedding.txt'.format(target_dir)) as embedding_file:
+    # Check that nothing has been left out
+    for subword in model.words:
+        if not subword in unique_subwords:
+            # Need to add subword
+            print('Adding {}'.format(subword))
+            embedding = ' '.join([str(element) for element in model[subword].tolist()])
+            line = '{} {}'.format(subword, embedding)
+            output_list.append(line)
+
+    with open(os.path.join(target_dir, 'embedding.txt'), 'w') as embedding_file:
         embedding_file.write('\n'.join(output_list))
 
 def save_embedding_to_npy(embedding_dict,
@@ -158,6 +171,9 @@ def main(args):
     """ Primary point of entry for generating sub-word (phone or grapheme) level embeddings
     """
     if not args.only_viz:
+        if not os.path.exists(RES_DIR):
+            os.makedirs(RES_DIR)
+
         print('Generating corpus...')
         subword_dataset = MLFDataset(
             path_to_mlf=args.mlf_file,
@@ -177,6 +193,8 @@ def main(args):
                 word2vec_dir=args.word2vec_dir
             )
         elif args.model == 'fastText':
+            if not os.path.exists(args.embedding):
+                os.makedirs(args.embedding)
             fasttext_embed(
                 corpus_path=args.subword_corpus,
                 vector_length=args.vec_length,

@@ -242,7 +242,7 @@ class MLFDataset(object):
 
     def save_unique_subwords(self, target_file):
         with open(target_file, 'w') as subword_file:
-            json.dump(self.subwords, subword_file)
+            json.dump(list(self.subwords), subword_file)
 
     def corpus(self):
         """ Generate a text corpus from the 1-best reference sequences from ASR recording.
