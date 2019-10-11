@@ -1,4 +1,6 @@
 import argparse
+import json
+import fasttext
 import numpy as np
 import os
 from subprocess import call
@@ -30,13 +32,13 @@ def parse_arguments(args_to_parse):
         help="Input MLF file from which to generate the corpus."
     )
     general.add_argument(
-        '-o', '--output-corpus', type=str,
+        '--subword-corpus', type=str,
         default='{}/subword-corpus.dat'.format(RES_DIR),
-        help='The path name of the corpus produced.'
+        help='The path name of the subword corpus produced.'
     )
     general.add_argument(
-        '-ph', '--unique-subwords', type=str,
-        default='{}/unique-subword-list.dat'.format(RES_DIR),
+        '-u', '--unique-subwords', type=str,
+        default='{}/unique-subword-list.json'.format(RES_DIR),
         help='Path name of the file where the the unique subword unit list will be saved.'
     )
     general.add_argument(
@@ -83,10 +85,10 @@ def parse_arguments(args_to_parse):
 
     # Embedding options
     embedding = parser.add_argument_group('Embedding options')
-    embedding_opts = ['CBOW'] # TODO: add skip-gram functionality
+    model_opts = ['word2vec', 'fastText']
     embedding.add_argument(
-        '-t', '--type', type=str, default='CBOW', choices=embedding_opts,
-        help='The technique used during training.'
+        '-m', '--model', type=str, default='word2vec', choices=model_opts,
+        help='The model to use: word2vec or fastText'
     )
     embedding.add_argument(
         '-e', '--embedding', type=str,
@@ -125,8 +127,26 @@ def parse_arguments(args_to_parse):
     args = parser.parse_args(args_to_parse)
     return args
 
-def embed(corpus_path, vector_length, type, target_dir, word2vec_dir):
-    call("subword-embedding/embed.sh {} {} {} {}".format(vector_length, target_dir, corpus_path, word2vec_dir), shell=True)
+def word2vec_embed(corpus_path, vector_length, target_dir, word2vec_dir):
+    call("subword-embedding/word2vec_embed.sh {} {} {} {}".format(
+        vector_length, target_dir, corpus_path, word2vec_dir), shell=True
+    )
+
+def fasttext_embed(corpus_path, vector_length, unique_subwords_path, target_dir):
+    model = fasttext.train_unsupervised(corpus_path, dim=vector_length)
+
+    with open(unique_subwords_path) as unique_subwords_file:
+        unique_subwords = json.load(unique_subwords_file)
+
+    output_list = []
+    output_list.append('{} {}'.format(len(model.words), vector_length))
+    for subword in unique_subwords:
+        embedding = ' '.join(model[subword].tolist)
+        line = '{} {}'.format(subword, embedding)
+        output_list.append(line)
+
+    with open('{}/embedding.txt'.format(target_dir)) as embedding_file:
+        embedding_file.write('\n'.join(output_list))
 
 def save_embedding_to_npy(embedding_dict,
                           npy_embedding_file='{}/embedding/embedding.npy'.format(RES_DIR)):
@@ -146,16 +166,23 @@ def main(args):
             separate_apostrophe_embedding=args.apostrophe_embedding
         )
         subword_dataset.save_unique_subwords(target_file=args.unique_subwords)
-        write_to_file(content=subword_dataset.corpus(), target=args.output_corpus)
+        write_to_file(content=subword_dataset.corpus(), target=args.subword_corpus)
 
-        print('Using word2vec to generate embeddings...')
-        embed(
-            corpus_path=args.output_corpus,
-            vector_length=args.vec_length,
-            type=args.type,
-            target_dir=args.embedding,
-            word2vec_dir=args.word2vec_dir
-        )
+        print('Using {} to generate embeddings...'.format(args.model))
+        if args.model == 'word2vec':
+            word2vec_embed(
+                corpus_path=args.subword_corpus,
+                vector_length=args.vec_length,
+                target_dir=args.embedding,
+                word2vec_dir=args.word2vec_dir
+            )
+        elif args.model == 'fastText':
+            fasttext_embed(
+                corpus_path=args.subword_corpus,
+                vector_length=args.vec_length,
+                unique_subwords_path=args.unique_subwords,
+                target_dir=args.embedding,
+            )
 
     print('Creating visualisation using t-SNE...')
 
